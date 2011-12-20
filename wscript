@@ -29,7 +29,6 @@ def options(opt):
 
 def configure(conf):    
     conf.load('frogs')    
-    conf.check_cc(lib='z', msg='Checking for zlib')    
     conf.check_cernlib()
     conf.check_packages(requirements)
     conf.write_config_header("config.h")
