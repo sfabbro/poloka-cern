@@ -1,0 +1,19 @@
+CLEANFILES = *~
+MAINTAINERCLEANFILES = \
+        Makefile.in \
+        stamp-*
+
+
+AM_DEFAULT_SOURCE_EXT = .cc
+
+bin_PROGRAMS = l2tup im2tup 2im2tup
+
+l2tup_LDADD = @CERNLIB_LIBS@
+
+im2tup_LDADD = @POLOKA_CORE_LIBS@ @CERNLIB_LIBS@
+im2tup_CPPFLAGS = @POLOKA_CORE_CFLAGS@
+
+2im2tup_LDADD = @POLOKA_CORE_LIBS@ @CERNLIB_LIBS@
+2im2tup_CPPFLAGS = @POLOKA_CORE_CFLAGS@
+
+noinst_HEADERS = list_utils.c

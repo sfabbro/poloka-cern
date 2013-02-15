@@ -1,5 +1,34 @@
-.waf*
-build/
-*.pyc
 *~
 .lock-*
+
+# autotools generated
+ChangeLog
+*.o
+*.so
+*.l[oa]
+*.loT
+.deps
+.libs
+*pc
+stamp-h*
+config.h
+Makefile
+Makefile.in
+libtool
+/m4/libtool.m4
+/m4/lt*.m4
+/aclocal.m4
+/autom4te.cache
+/config.h
+/config.h.in
+/config.log
+/config.status
+/configure
+/autoconf
+/doc/Doxyfile
+
+# execs
+/tools/*
+!/tools/*.cc
+!Makefile.am
+

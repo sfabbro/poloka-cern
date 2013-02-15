@@ -1,9 +1,9 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include "fitsimage.h"
-#include "hbook.h"
-#include "fileutils.h"
+#include <hbook.h>
+#include <poloka/fitsimage.h>
+#include <poloka/fileutils.h>
 
 #define NWPAWC 100000
 float pawc_[NWPAWC];

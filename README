@@ -1,0 +1,8 @@
+poloka-cern
+===========
+
+poloka is a software package to process astronomical
+images. poloka-cern is a set of utilities to interact
+between paw and poloka.
+
+To install poloka-cern, see the INSTALL file.
