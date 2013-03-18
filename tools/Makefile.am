@@ -6,14 +6,23 @@ MAINTAINERCLEANFILES = \
 
 AM_DEFAULT_SOURCE_EXT = .cc
 
-bin_PROGRAMS = l2tup im2tup 2im2tup
+bin_PROGRAMS = \
+	pka-list2hbook \
+	pka-fits2hbook \
+	pka-2fits2hbook \
+	pka-hist2hbook
 
-l2tup_LDADD = @CERNLIB_LIBS@
+pka_list2hbook_CPPFLAGS = @CERNLIB_CFLAGS@
+pka_list2hbook_LDADD = @CERNLIB_LIBS@
 
-im2tup_LDADD = @POLOKA_CORE_LIBS@ @CERNLIB_LIBS@
-im2tup_CPPFLAGS = @POLOKA_CORE_CFLAGS@
+ALL_LDADD = @CERNLIB_LIBS@ @POLOKA_CORE_LIBS@
+ALL_CFLAGS = @CERNLIB_LIBS@ @POLOKA_CORE_CFLAGS@
 
-2im2tup_LDADD = @POLOKA_CORE_LIBS@ @CERNLIB_LIBS@
-2im2tup_CPPFLAGS = @POLOKA_CORE_CFLAGS@
+pka_fits2hbook_LDADD = $(ALL_LDADD)
+pka_fits2hbook_CPPFLAGS = $(ALL_CFLAGS)
 
-noinst_HEADERS = list_utils.c
+pka_2fits2hbook_LDADD = $(ALL_LDADD)
+pka_2fits2hbook_CPPFLAGS = $(ALL_CFLAGS)
+
+pka_hist2hbook_LDADD = $(ALL_LDADD)
+pka_hist2hbook_CPPFLAGS = $(ALL_CFLAGS)

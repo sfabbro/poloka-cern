@@ -1,20 +1,20 @@
 ## Initialization
-AC_PREREQ(2.59)
+
 AC_INIT([poloka-cern], 0.1.0, [poloka team])
 AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_SRCDIR([tools/l2tup.cc])
+AC_CONFIG_SRCDIR([tools/pka-list2hbook.cc])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR(autoconf)
 AM_INIT_AUTOMAKE([foreign])
 
-## Checks for programs to build poloka-core library
+## Checks for programs
 AC_PROG_CXX
-AC_PROG_F77
 
-AC_LIB_CERNLIB([packlib],
-	       [HROPEN],
-               [CERNLIB=true],
-               [AC_MSG_ERROR([cernlib was not found])])
+AX_CERNLIB([packlib],
+	   [HROPEN],
+	   [packlib.h],
+           [],
+           [AC_MSG_ERROR([CERN library packlib or packlib.h header not found])])
 
 PKG_CHECK_MODULES([POLOKA_CORE],
 		  [poloka-core],,
@@ -22,4 +22,4 @@ PKG_CHECK_MODULES([POLOKA_CORE],
 
 AC_CONFIG_FILES([Makefile
 		 tools/Makefile])
- AC_OUTPUT
+AC_OUTPUT

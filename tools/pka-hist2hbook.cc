@@ -1,43 +1,30 @@
-// -*- C++ -*- 
 #include <iostream>
-// #include <stream.h>
 #include <fstream>
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <limits.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cmath>
+#include <climits>
+#include <cstring>
 #include <string>
+#include <ctime>
+#include <packlib.h>
 
-#include <time.h>
-
-#include "hbook.h"
-
-#include "fitsimage.h"
-
-using namespace std;
+#include <poloka/fitsimage.h>
 
 #define NWPAWC 100000
 float pawc_[NWPAWC];
 
-//#define NOTDEAD
-
 static FILE* kumac;
 
-static char* BareFileName(char *FileName)
-{
+static char* BareFileName(char *FileName) {
   char *p = FileName+strlen(FileName) - 1;
   while (p>=FileName && *p != '/') p--;
   return p+1;
 }
 
+static int image_histos(char *FileName, const char *MaskName=0) {
 
-
-int image_histos(char *FileName, char *Mask)
-{
   if (!FileName) return 0;
-
-
 
   FitsImage img(FileName);
   static int id =11;
@@ -49,19 +36,14 @@ int image_histos(char *FileName, char *Mask)
   //double gain=img.KeyVal("GAIN");
 
   FitsImage *pmask = NULL;
-  if ( Mask != NULL && (strlen(Mask) > 1 ) )        
-    {
-      pmask = new FitsImage(Mask) ;
-      if ( pmask->Nx() != nx ||  pmask->Ny() != ny )
-	{
-	  cerr << "taille mask != taille image " << endl ;
-	  return 0;
-	}
+  if (MaskName && (strlen(MaskName) > 1 ) ) {
+    pmask = new FitsImage(MaskName) ;
+    if ( pmask->Nx() != nx ||  pmask->Ny() != ny ){
+      cerr << " image_histos: size mask != size  image\n";
+      delete pmask;
+      return 0;
     }
-
-
-
-
+  }
 
   char histName[80]; /* with HBOOK, have to pass a real array, not a pointer as far as I remember */
   char histMName[80]; /* with HBOOK, have to pass a real array, not a pointer as far as I remember */
@@ -82,137 +64,133 @@ int image_histos(char *FileName, char *Mask)
   img.SkyLevel(&aa,&ss);
   average = aa ;
   sigma = ss ;
-  cout << "image "<< histName  << " ave " 
-       << average << " sqrt(ave) " << sqrt(average) 
+  cout << " image_histos: image "<< histName  << " mean " 
+       << average << " sqrt(mean) " << sqrt(average) 
        << " sigma " << sigma << " count " << ntot << endl;
 
   //  if (average > 2.0)
   char *nloo = getenv("NLOOP");
   int Nloop = 3 ;
-  if ( nloo != NULL)
-    {
-      sscanf(nloo,"%d", &Nloop);
-      cout << "N loop : " << Nloop << endl ;
-    }
-    
+  if ( nloo != NULL) {
+    sscanf(nloo,"%d", &Nloop);
+    cout << " image_histos: N loop : " << Nloop << endl;
+  }
+  
   int Nsig = 3.5 ;
 
-  if (true)
-    {
-      for(int loop=0; loop< Nloop; loop++)
-	{
-	  int count=0;
-	  double mean = average;
-	  average = 0.0;
-	  variance = 0.0;
-	  for (int j=0; j<ny; j++) for (int i=0; i<nx; i++) 
-	    {
-	      value = img(i,j);
-	      if (fabs(value-mean)<Nsig*sigma)
-		{
-		  average += value;
-		  variance += value*value;
-		  count++;
-		}
-	    }
-	  average /= count;
-	  variance = (variance/(count-1)) - (average*average);
-	  sigma = sqrt(variance);
-	  cout << "image "<< histName  << " ave " << average 
-	       << " sqrt(ave) " << sqrt(average) << " sigma " 
-	       << sigma << " count " << count << endl;
+  if (true) {
+    for(int loop=0; loop< Nloop; loop++) {
+      int count=0;
+      double mean = average;
+      average = 0.0;
+      variance = 0.0;
+      for (int j=0; j<ny; j++) 
+	for (int i=0; i<nx; i++) {
+	  value = img(i,j);
+	  if (fabs(value-mean)<Nsig*sigma) {
+	    average += value;
+	    variance += value*value;
+	    count++;
+	  }
 	}
-
-      HBOOK1(id,histName,50, average-5.*sigma, average+5.*sigma, 0);
-      if (pmask != NULL )
-	HBOOK1(idmask,histMName,50, average-10.*sigma, average+10.*sigma, 0);
-    }
-  else
-    {
-      HBOOK1(id,histName,50, -0.5, 1.5, 0);
-      if (pmask != NULL )
-	HBOOK1(idmask,histMName,50, -0.5, 1.5, 0);
+      average /= count;
+      variance = (variance/(count-1)) - (average*average);
+      sigma = sqrt(variance);
+      cout << " image_histos: image "<< histName  << " mean " << average 
+	   << " sqrt(mean) " << sqrt(average) << " sigma " 
+	   << sigma << " count " << count << endl;
     }
 
-  for (int i=0; i<nx; i++) for (int j=0; j<ny; j++)
-    {
+    HBOOK1(id,histName,50, average-5.*sigma, average+5.*sigma, 0);
+    if (pmask)
+      HBOOK1(idmask,histMName,50, average-10.*sigma, average+10.*sigma, 0);
+  } else {
+    HBOOK1(id,histName,50, -0.5, 1.5, 0);
+    if (pmask)
+      HBOOK1(idmask,histMName,50, -0.5, 1.5, 0);
+  }
+  
+  for (int i=0; i<nx; i++) 
+    for (int j=0; j<ny; j++) {
       HFILL(id,img(i,j),0.,1.);
       //  if (img(i,j)<=0.1)
       //  cout << "img("<<i<<","<<j<<") = "<<img(i,j)<<endl;
-      if (pmask != NULL )
+      if (pmask)
 	if ((*pmask)(i,j)< 1.e-10)
-	  HFILL(idmask,img(i,j),0.,1.);
-
+	  HFILL(idmask,img(i,j),0.,1.);      
     }
 
 
   fprintf(kumac,"h/plot %d\n",id);
   id++;
-  if (pmask != NULL )
-    {
-      fprintf(kumac,"h/plot %d\n",idmask);
-      idmask++;
-    }
+  if (pmask) {
+    fprintf(kumac,"h/plot %d\n",idmask);
+    idmask++;
+    delete pmask;
+  }
   return 1;
 }
 
-
-int image_histos(char *FileName)
-{
-  char *Mask ;
-  return image_histos(FileName, Mask) ;
-
+static void usage(const char* progname) {
+  cerr << "Usage: " << progname << " [OPTION] FITS...\n"
+       << "Produce a sky histogram from a FITS image\n\n"
+       << "    -m FITS: use mask FITS\n\n";
+  exit(EXIT_FAILURE);
 }
 
+int main(int nargs,char **args) {
 
+  if (nargs<2) usage(args[0]);
 
+  vector<char*> imList;
+  imList.reserve(nargs-1);
+  char *maskName = 0;
 
-
-
-int main(int nargs,char **args)
-{
- char *mask = getenv("MASK");
- 
-
-
-
-  string nom;
+  for (int i=1; i< nargs; ++i) {
+    char *arg = args[i];
+    if (arg[0] != '-') {
+      imList.push_back(arg); 
+      continue;
+    }
+    switch (arg[1]) {
+    case 'm': maskName = args[++i]; break;
+    default: usage(args[0]);
+    }
+  }
 
   int istat;
+  int lrec = 1024; 
   HLIMIT(NWPAWC);
 #define HBK_FILE_NAME "histos.hbk"
 
-  char toto1[50]="TOPDIR";
-  char toto2[50]="histos.hbk";
-  char toto3[50]="N";
+  char toto1[50] = "TOPDIR";
+  char toto2[50] = HBK_FILE_NAME;
+  char toto3[50] = "N";
 
-  HROPEN(1,toto1,toto2,toto3,1024,istat);
-  if (istat !=0)
-    {
-      cout << "cannot open histos.hbk" << endl;
-      exit(2);
-    }
+  HROPEN(1, toto1, toto2, toto3, lrec, istat);
+  if (istat != 0) {
+    cerr << args[0] << ": cannot open "<< HBK_FILE_NAME << endl;
+    return EXIT_FAILURE;
+  }
 
-  kumac = fopen("plot_all.kumac","w");
-  if (!kumac) 
-    {
-      cout << " cannot open plot_all.kumac ..." << endl;
-      exit (2);
-    }
-  fprintf(kumac,"h/file 1 %s\n",HBK_FILE_NAME);
-  int i;
-  for (i=1 ; i<nargs; i++)
-    {
-      cout << " processing image " << i <<" : "<< args[i] << " --- histo : " << i+10 <<endl;
-      image_histos(args[i], mask);
-    }
+  char *plotfile = "plot_all.kumac";
+  kumac = fopen(plotfile, "w");
+  if (!kumac) {
+    cerr << args[0] << ": cannot open " << plotfile << endl;
+    return EXIT_FAILURE;
+  }
+  fprintf(kumac,"h/file 1 %s\n", HBK_FILE_NAME);
 
+  for (size_t i=1 ; i<imList.size(); i++) {
+    cout << args[0] << ": processing image " << i <<" : "<< imList[i]
+	 << " --- histo : " << i+10 << endl;
+    image_histos(imList[i], maskName);
+  }
+  
   int icycle;
-  char toto4[50]=" ";
-  HROUT(0,icycle,toto4);
+  char toto4[50] = " ";
+  HROUT(0, icycle, toto4);
   HREND(toto1);
   
-
-  return 1;
-
+  return EXIT_SUCCESS;
 }

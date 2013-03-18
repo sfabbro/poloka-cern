@@ -17,6 +17,8 @@ Requirements
 poloka-cern needs a few standard packages and compilers:
 
 * A C/C++ compiler (tested with gcc/g++ up to version 4.7)
+* The cernlib "packlib" library and headers
+* The cfortran.h C to fortran header
 * A FORTRAN 77 compiler
 * The pkg-config tool
 * The poloka-core library

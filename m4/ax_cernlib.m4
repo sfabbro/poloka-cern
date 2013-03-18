@@ -1,6 +1,7 @@
 dnl                                                      -*- Autoconf -*- 
 dnl  autoconf macros for the cernlib libraries
 dnl  Copyright (C) 2004, 2005 Patrice Dumas
+dnl  Copyright (C) 2012 Sebastien Fabbro (almost complete rewrite)
 dnl
 dnl  This program is free software; you can redistribute it and/or modify
 dnl  it under the terms of the GNU General Public License as published by
@@ -18,14 +19,15 @@ dnl  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 dnl A basic axample of the macro usage:
 dnl 
-dnl AC_LIB_CERNLIB(kernlib,CLTOU,
+dnl AX_CERNLIB([kernlib], [CLTOU],,
 dnl [
-dnl    AC_LIB_CERNLIB(mathlib,GAUSS,[LIBS="$CERNLIB_LIBS $LIBS"])
+dnl    AX_CERNLIB([mathlib], [GAUSS],[LIBS="$CERNLIB_LIBS $LIBS"])
 dnl ])
 
 dnl
-dnl --with-static-cernlib forces the static or dynamic linking.
-dnl --with-cernlib gives the location of cernlib.
+dnl --enable-cernlib-static: forces the static or dynamic linking
+dnl --with-cernlib-libs: specify the linking flags (default is -l<CERN_LIB>)
+dnl --with-cernlib-cflags: specify pre-processing flags (default is blank)
 dnl
 dnl If the type of linking isn't specified it is assumed to be static.
 dnl
@@ -44,129 +46,165 @@ dnl - if the binary program 'cernlib' is in the path it is assumed that it is th
 dnl   debian script and it is called with -dy.
 dnl - otherwise a simple linking is performed.
 dnl
-dnl AC_LIB_CERNLIB ([LIBRARY = kernlib], [FUNCTION = CLTOU], [ACTION-IF-FOUND],
-dnl          [ACTION-IF-NOT-FOUND]) 
+dnl AX_CERNLIB ([LIBRARY = kernlib], [FUNCTION = CLTOU], [HEADER = ],
+dnl             [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND]) 
 dnl should be called afterwards for each of the cernlib library needed. 
 dnl Based on the information collected by AC_CERNLIB the needed flags are 
 dnl added to the linking flags or the files and flags are added to the 
 dnl $CERNLIB_LIBS shell variable and a test of linking is performed.
 dnl
-dnl The static library linking flags and files are in $CERNLIB_LIBS.
+dnl The resulting linking flags and files are in $CERNLIB_LIBS.
 
+AC_DEFUN([AX_DEFINE_CERNLIB], [
 
-# AC_CERNLIB check for cernlib location and whether it should be 
-# statically linked or not.
-AC_DEFUN([AC_CERNLIB], [
-CERNLIB_LIB_PATH=
-CERNLIB_STATIC=no
-AC_ARG_WITH(static_cernlib,
-[  --with-static-cernlib             link statically with the cernlib],
-[  CERNLIB_STATIC=$withval      ])
+CERNLIB_STATIC="no"
+CERNLIB_BIN=""
+CERNLIB_DIR=""
 
-AC_ARG_WITH(cernlib,
-[  --with-cernlib           cernlib location],
-[  CERNLIB_LIB_PATH=$withval    ])
+AC_ARG_ENABLE([cernlib-static],
+	    AS_HELP_STRING([--enable-cernlib-static],
+			   [Link statically with cernlib libraries]),
+	    [CERNLIB_STATIC=$enableval],
+	    [CERNLIB_STATIC=no])
 
+AC_ARG_WITH([cernlib-libs],
+	    AS_HELP_STRING([--with-cernlib-libs=LIBS],
+			   [Linking flags for CERNLIB libraries]),
+	    [CERNLIB_LIBS="$withval"])
 
-if test "z$CERNLIB_STATIC" != "zno"; then    
-    CERNLIB_STATIC=yes
-    if test "z$CERNLIB_LIB_PATH" = z; then
-        AC_PATH_PROG(CERNLIB_BIN, cernlib-static, no)
-        if test $CERNLIB_BIN = no; then
-            AC_PATH_PROG(CERNLIB_BIN, cernlib, no)
-        fi
-        if test $CERNLIB_BIN = no; then
-            if test "z$CERNLIB" != z -a -d "$CERNLIB"; then
-               CERNLIB_LIB_PATH=$CERNLIB
-               AC_MSG_NOTICE([using the CERNLIB environment variable for cernlib location])
-            elif test "z$CERN_ROOT" != z -a -d "$CERN_ROOT/lib"; then
-                CERNLIB_LIB_PATH=$CERN_ROOT/lib
-                AC_MSG_NOTICE([using the CERN_ROOT environment variable for cernlib location])
-            fi
-        fi
-    fi
-else
-    AC_PATH_PROG(CERNLIB_BIN, cernlib, no)
-    if test "z$CERNLIB_LIB_PATH" != z; then
-         LDFLAGS="$LDFLAGS -L$CERNLIB_LIB_PATH"
-    fi
+AC_ARG_WITH([cernlib-cflags],
+	    AS_HELP_STRING([--with-cernlib-cflags=CFLAGS],
+		           [Preprocessing flags for CERNLIB headers]),
+	    [CERNLIB_CFLAGS="$withval"])
+
+AC_PATH_PROG([CERNLIB_BIN], [cernlib])
+if test x"$CERNLIB_BIN" = x -a x"$CERNLIB_STATIC" != x"no"; then
+   AC_PATH_PROG([CERNLIB_BIN], [cernlib-static])
 fi
+
+if test x"$CERNLIB_BIN" = x; then
+   if test x"$CERNLIB" != x -a -d "$CERNLIB"; then
+      CERNLIB_DIR="$CERNLIB"
+      AC_MSG_NOTICE([Using the CERNLIB environment variable to determine directory install])
+   elif test x"$CERN_ROOT" != x -a -d "$CERN_ROOT/lib"; then
+      CERNLIB_DIR="$CERN_ROOT/lib"
+      AC_MSG_NOTICE([Using the CERN_ROOT environment variable to determine directory install])
+  fi
+fi
+
+AC_PROG_F77
+
 ])
 
-# AC_LIB_CERNLIB ([LIBRARY = kernlib], [FUNCTION = CLTOU], [ACTION-IF-FOUND],
+# AX_CERNLIB ([LIBRARY = kernlib], [FUNCTION = CLTOU], [HEADER], [ACTION-IF-FOUND],
 #          [ACTION-IF-NOT-FOUND]) 
 # check for a function in a library of the cernlib
-AC_DEFUN([AC_LIB_CERNLIB], [
-AC_REQUIRE([AC_CERNLIB])
+AC_DEFUN([AX_CERNLIB], [
 
-cernlib_lib_ok="no"
+AC_REQUIRE([AX_DEFINE_CERNLIB])
 
-if test "z$1" = z; then
-    cern_library=kernlib
-else
-    cern_library=$1
+ac_cernlib_func="CLTOU"
+ac_cernlib_library="kernlib"
+ac_cernlib_header=""
+ac_cernlib_ok="no"
+
+if test x"$1" != x; then
+    ac_cernlib_library=$1
 fi
 
-if test "z$2" = z; then
-    cern_func=CLTOU
-else
-    cern_func=$2
+if test x"$2" != x; then
+    ac_cernlib_func=$2
 fi
+
+if test x"$3" != x; then
+    ac_cernlib_header=$3
+fi
+
 
 save_CERNLIB_LIBS=$CERNLIB_LIBS
 save_LIBS=$LIBS
 
-if test "z$CERNLIB_STATIC" = "zyes"; then
-    cernlib_lib_static_found=no
-    AC_MSG_NOTICE([cernlib: linking with a static $cern_library])
-    if test "z$CERNLIB_BIN" != "zno"; then
-        cernlib_bin_out=`$CERNLIB_BIN $cern_library`
-        CERNLIB_LIBS="$cernlib_bin_out $CERNLIB_LIBS"
-        cernlib_lib_static_found=yes
-    elif test "z$CERNLIB_LIB_PATH" != z; then
-dnl .a for UNIX libraries only ?
-        if test -f "$CERNLIB_LIB_PATH/lib${cern_library}.a"; then 
-            CERNLIB_LIBS="$CERNLIB_LIB_PATH/lib${cern_library}.a $CERNLIB_LIBS"
-            cernlib_lib_static_found=yes
+dnl define CERNLIB_LIBS variable
+if test x"$CERNLIB_STATIC" != x"no"; then
+    ac_cernlib_lib_static_found=no
+    AC_MSG_NOTICE([cernlib: linking with a static $ac_cernlib_library])
+    if test x"$CERNLIB_BIN" != x; then
+        ac_cernlib_bin_out=`$CERNLIB_BIN $ac_cernlib_library`
+        CERNLIB_LIBS="$ac_cernlib_bin_out $CERNLIB_LIBS"
+        ac_cernlib_lib_static_found=yes
+    elif test x"$CERNLIB_DIR" != x; then
+        if test -f "$CERNLIB_DIR/lib${ac_cernlib_library}.a"; then 
+            CERNLIB_LIBS="$CERNLIB_DIR/lib${ac_cernlib_library}.a $CERNLIB_LIBS"
+            ac_cernlib_lib_static_found=yes
         fi
     fi
-    if test "z$cernlib_lib_static_found" = zno; then
+    if test x"$ac_cernlib_lib_static_found" = x"no"; then
         AC_MSG_WARN([cannot determine the cernlib location for static linking])
     fi
 else
-    AC_MSG_NOTICE([trying a dynamical link with $cern_library])
-    if test "z$CERNLIB_BIN" != "zno"; then
+    if test x"$CERNLIB_BIN" != x; then
         # try link with debian cernlib script with -dy
-        cernlib_bin_out=`$CERNLIB_BIN -dy $cern_library`
-        CERNLIB_LIBS="$cernlib_bin_out $CERNLIB_LIBS"
+        ac_cernlib_bin_out=`$CERNLIB_BIN -dy $ac_cernlib_library`
+        CERNLIB_LIBS="$ac_cernlib_bin_out"
+    elif test x"$CERNLIB_DIR" != x; then
+        CERNLIB_LIBS="-L$CERNLIB_DIR -l${ac_cernlib_library} $CERNLIB_LIBS"
     else
-        CERNLIB_LIBS="-l$cern_library $CERNLIB_LIBS"
+        CERNLIB_LIBS="-l${ac_cernlib_library} $CERNLIB_LIBS"
     fi
 fi
 
 dnl now try the link
+AC_MSG_CHECKING([for $ac_cernlib_func is defined in $ac_cernlib_library])
 LIBS="$CERNLIB_LIBS $LIBS"
 AC_LANG_PUSH(Fortran 77)
 AC_LINK_IFELSE([      program main
-      call $cern_func
+      call $ac_cernlib_func
       end
 ], 
 [ 
-    cernlib_lib_ok=yes
+    ac_cernlib_ok="yes"
 ],
 [
     CERNLIB_LIBS=$save_CERNLIB_LIBS
 ])
-AC_LANG_POP(Fortran 77)
-LIBS=$save_LIBS
-AC_SUBST([CERNLIB_LIBS])
 
-AS_IF([test x"$cernlib_lib_ok" = xyes],
-      [m4_default([$3], [AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_CERNLIB_${cern_library}_${cern_func}))
+LIBS=$save_LIBS
+AC_MSG_RESULT([$ac_cernlib_ok])
+
+AC_LANG_POP([Fortran 77])
+
+dnl check header (will need cfortran.h)
+if test x"$ac_cernlib_header" != x; then
+   CPPFLAGS="$CERNLIB_CFLAGS $CPPFLAGS"
+   ## need cfortran
+   case x$F77 in
+	x*gfortran) CERNLIB_CFLAGS="-DgFortran $CERNLIB_CFLAGS" ;;
+   	x*g77) CERNLIB_CFLAGS="-Dg77Fortran $CERNLIB_CFLAGS" ;;
+	x*ifort) CERNLIB_CFLAGS="-DINTEL_COMPILER $CERNLIB_CFLAGS" ;;
+	x*pgf77) CERNLIB_CFLAGS="-DpgiFortran $CERNLIB_CFLAGS" ;;
+    	x*) CERNLIB_CFLAGS="-Df2cFortran $CERNLIB_CFLAGS" ;;
+   esac
+   
+   AC_CHECK_HEADER([cfortran.h],,
+		   AC_MSG_WARN([Could not find cfortran.h]))
+
+   AC_CHECK_HEADER([$ac_cernlib_header], [ac_cernlib_header="yes"],
+		   AC_MSG_WARN([Could not find $ac_cernlib_header]))
+   if test x"$ac_cernlib_header" != x"yes"; then
+      ac_cernlib_ok="no"
+   fi
+   CPPFLAGS=$save_CPPFLAGS
+fi
+
+dnl done
+AC_SUBST([CERNLIB_LIBS])
+AC_SUBST([CERNLIB_CFLAGS])
+
+AS_IF([test x"$ac_cernlib_ok" = x"yes"],
+      [m4_default([$4], [AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_CERNLIB_${ac_cernlib_library}_${ac_cernlib_func}))
       ])],
       [
-       AC_MSG_WARN([cannot link $cern_func in lib$cern_library ])
-       $4
+       AC_MSG_WARN([Cannot link or compile simple cernlib programs ])
+       $5
       ])
-
 ])
